@@ -30,10 +30,10 @@ TEMPLATE_PATH = "template.png"
 OUTPUT_PATH = "output.png"
 
 # ★ 這是依照你 template.png 自動抓出的相框位置（左上 X, 左上 Y, 寬, 高）
-FRAME_X = 55
-FRAME_Y = 653
-FRAME_W = 890
-FRAME_H = 609
+FRAME_X = 74
+FRAME_Y = 1745
+FRAME_W = 1232
+FRAME_H = 841
 
 
 # ========= 影像合成函式 =========
