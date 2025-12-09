@@ -31,7 +31,7 @@ OUTPUT_PATH = "output.png"
 
 # ★ 這是依照你 template.png 自動抓出的相框位置（左上 X, 左上 Y, 寬, 高）
 FRAME_X = 74
-FRAME_Y = 1745
+FRAME_Y = 901
 FRAME_W = 1232
 FRAME_H = 841
 
