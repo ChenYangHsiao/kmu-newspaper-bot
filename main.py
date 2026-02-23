@@ -26,10 +26,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "template.png")
 
 # 合成框座標（請依你的模板）
-FRAME_X = 2888
-FRAME_Y = 3856
-FRAME_W = 2729
-FRAME_H = 1874
+FRAME_X = 60
+FRAME_Y = 652
+FRAME_W = 878
+FRAME_H = 612
 
 # 每次輸出到 outputs/ 之下
 OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
