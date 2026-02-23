@@ -15,7 +15,6 @@ CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "")
 
 if not CHANNEL_ACCESS_TOKEN or not CHANNEL_SECRET:
-    # 不直接 raise，避免 Render 健康檢查失敗時看不到 log
     print("[WARN] LINE_CHANNEL_ACCESS_TOKEN / LINE_CHANNEL_SECRET not set.")
 
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
@@ -32,17 +31,17 @@ FRAME_Y = 3856
 FRAME_W = 2729
 FRAME_H = 1874
 
-# 固定輸出檔案
-OUTPUT_PATH = os.path.join(BASE_DIR, "output.png")
+# 每次輸出到 outputs/ 之下
+OUTPUT_DIR = os.path.join(BASE_DIR, "outputs")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 # -----------------------------
 # Helpers
 # -----------------------------
-def compose_image(user_image_bytes: bytes) -> None:
-    """合成後輸出到 OUTPUT_PATH (固定 output.png)"""
+def compose_image_to_file(user_image_bytes: bytes) -> str:
+    """合成後存成 outputs/output_<timestamp>.png，回傳檔名"""
     template = Image.open(TEMPLATE_PATH).convert("RGBA")
-
     user_img = Image.open(BytesIO(user_image_bytes)).convert("RGBA")
 
     # 依框尺寸做填滿裁切（不變形，必要時裁切）
@@ -51,8 +50,27 @@ def compose_image(user_image_bytes: bytes) -> None:
     # 貼到模板
     template.paste(user_img, (FRAME_X, FRAME_Y), user_img)
 
-    # 存檔（PNG）
-    template.save(OUTPUT_PATH, format="PNG")
+    # 用 timestamp 命名，避免快取
+    ts = int(time.time() * 1000)
+    filename = f"output_{ts}.png"
+    out_path = os.path.join(OUTPUT_DIR, filename)
+
+    template.save(out_path, format="PNG")
+    return filename
+
+
+def cleanup_old_outputs(max_files: int = 30):
+    """避免磁碟被塞爆：只保留最新 max_files 張"""
+    try:
+        files = [f for f in os.listdir(OUTPUT_DIR) if f.lower().endswith(".png")]
+        files = sorted(files, key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)), reverse=True)
+        for f in files[max_files:]:
+            try:
+                os.remove(os.path.join(OUTPUT_DIR, f))
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # -----------------------------
@@ -63,12 +81,12 @@ def health():
     return "OK", 200
 
 
-@app.route("/output.png", methods=["GET"])
-def get_output():
-    # 直接回傳最新 output.png
-    if not os.path.exists(OUTPUT_PATH):
-        return "No output yet", 404
-    return send_file(OUTPUT_PATH, mimetype="image/png", conditional=False)
+@app.route("/outputs/<path:filename>", methods=["GET"])
+def serve_output(filename):
+    file_path = os.path.join(OUTPUT_DIR, filename)
+    if not os.path.exists(file_path):
+        return "Not found", 404
+    return send_file(file_path, mimetype="image/png", conditional=False)
 
 
 @app.route("/callback", methods=["POST"])
@@ -95,13 +113,15 @@ def handle_image_message(event):
         content = line_bot_api.get_message_content(message_id)
         img_bytes = content.content
 
-        # 2) 合成 output.png
-        compose_image(img_bytes)
+        # 2) 合成並輸出到 outputs/output_<timestamp>.png
+        filename = compose_image_to_file(img_bytes)
 
-        # 3) 回傳圖片 URL（加上防快取參數 v=timestamp）
+        # 3) 清理舊檔（防止爆容量）
+        cleanup_old_outputs(max_files=30)
+
+        # 4) 回傳圖片 URL（不同檔名，本身就不會快取）
         base_url = os.getenv("RENDER_EXTERNAL_URL", "https://kmu-newspaper-bot-2.onrender.com")
-        # 重要：固定路徑 + query string 破除 LINE 快取
-        image_url = f"{base_url}/output.png?v={int(time.time())}"
+        image_url = f"{base_url}/outputs/{filename}"
 
         line_bot_api.reply_message(
             event.reply_token,
@@ -121,11 +141,9 @@ def handle_image_message(event):
 
 @handler.add(MessageEvent, message=None)
 def handle_other(event):
-    # 保底（避免某些事件進來報錯）
     pass
 
 
 if __name__ == "__main__":
-    # Render 會用 gunicorn 啟動，這段只方便本地測試
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
