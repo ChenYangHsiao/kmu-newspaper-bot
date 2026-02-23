@@ -26,12 +26,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "template.png")
 
 # 合成框座標（請依你的模板）
-BORDER = 10  # 想改粗細只改這一行
+BORDER = 8  # 想改粗細只改這一行
 
-BASE_X = 55
-BASE_Y = 640
-BASE_W = 900
-BASE_H = 620
+BASE_X = 65
+BASE_Y = 652
+BASE_W = 884
+BASE_H = 612
 
 FRAME_X = BASE_X + BORDER
 FRAME_Y = BASE_Y + BORDER
